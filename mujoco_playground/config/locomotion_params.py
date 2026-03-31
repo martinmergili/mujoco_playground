@@ -21,6 +21,7 @@ from mujoco_playground._src import locomotion
 
 def brax_ppo_config(
     env_name: str, impl: Optional[str] = None
+    
 ) -> config_dict.ConfigDict:
   """Returns tuned Brax PPO config for the given environment."""
   env_config = locomotion.get_default_config(env_name)
@@ -147,6 +148,26 @@ def brax_ppo_config(
       policy_obs_key="state",
       value_obs_key="privileged_state",
     )
+  
+    """
+      elif env_name in (
+        "Solo8TrottingDemonstrationStage1",
+        "Solo8TrottingDemonstrationStage2",
+    ):
+      # Paper Section 2.2: "two layers of 64 units each"
+      # Same architecture for both stages to enable weight transfer.
+      rl_config.num_timesteps = 100_000_000
+      rl_config.num_evals = 10
+      rl_config.reward_scaling = 1.0
+      rl_config.action_repeat = 1
+      rl_config.network_factory = config_dict.create(
+          policy_hidden_layer_sizes=(64, 64),
+          value_hidden_layer_sizes=(128, 128),
+          policy_obs_key="state",
+          value_obs_key="state",
+      )
+    """
+
 
   elif env_name in (
       "BarkourJoystick",
@@ -156,6 +177,10 @@ def brax_ppo_config(
       "SpotFlatTerrainJoystick",
       "SpotGetup",
       "SpotJoystickGaitTracking",
+      "Solo8TrottingGaitTracking",
+      "Solo8WalkingGaitTracking",
+      "Solo8TrottingDemonstrationStage1",
+      "Solo8TrottingDemonstrationStage2",
   ):
     pass  # use default config
   else:
