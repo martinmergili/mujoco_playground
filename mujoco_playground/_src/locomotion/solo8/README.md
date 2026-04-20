@@ -1,5 +1,9 @@
 # Solo8 – MuJoCo Playground Extension
 
+- Erwähnen und verlinken wo man alles zu MuJoCo Playground findet.
+- Bilder und Videos einfügen bzw verlinken
+- Trouble shooting
+
 ## Overview
 This project extends the existing *MuJoCo Playground* framework with a custom **Solo8** environment.
 
