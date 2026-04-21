@@ -1,17 +1,4 @@
-# Solo8 – MuJoCo Playground Extension
-
-- Erwähnen und verlinken wo man alles zu MuJoCo Playground findet.
-- Bilder und Videos einfügen bzw verlinken
-- Trouble shooting
-
-## Overview
-This project extends the existing *MuJoCo Playground* framework with a custom **Solo8** environment.
-
-The goal is to simulate the **Solo8 quadruped robot** developed by the Open Dynamic Robot Initiative and to train it using reinforcement learning to achieve a stable **trotting gait**.
-
-A trotting gait is characterized by the synchronized movement of diagonal leg pairs (front-left with hind-right and front-right with hind-left), alternating over time and including short flight phases where no foot touches the ground.
-
----
+# Solo8
 
 ## Project Structure
 
@@ -19,6 +6,7 @@ A trotting gait is characterized by the synchronized movement of diagonal leg pa
 Main directory containing all project-specific code.
 
 #### Core Files
+
 - `base.py`  
   Provides the base environment (`Solo8Env`) used by all tasks.  
   It handles:
@@ -30,29 +18,35 @@ Main directory containing all project-specific code.
   This file already implements most shared functionality (e.g., observation-related data), making it easy to define new tasks on top of it.
 
 - `solo8_constants.py`  
-  Contains robot-specific constants used across environments.
+  Contains robot- and environment-specific constants, including XML paths, sensor names, and foot-related definitions.  
+  It ensures consistent naming and configuration across all environments and tasks.
 
-- `trotting_demonstration_trajectory.py`  
-  Defines reference trajectories for imitation learning.
+- `trotting_gait_tracking.py`  
+  - Needs to be renamed
+  - Description needs to be extended: Comprises our from-scratch approach (tries to generate a trotting gait pattern through RL with random exploration - no prior knowledge, depends heavily on reward structure)
 
 ---
 
 ### `solo8/xmls/`
-Contains all MuJoCo XML files describing the robot and simulation setup.
+Contains all MuJoCo XML files (MJCF) describing the robot and simulation setup.
 
 - `solo8_mjx_feetonly.xml`  
-  Main robot model used in simulation (geometry, joints, actuators, etc.)
+  Main robot model used in simulation. It defines the full Solo8 system, including
+  - Kinematics (floating base + 4 legs - front/hind, left/right, each consisting of a hip and knee joint)
+  - Dynamics (masses, inertias, joint limits, damping)
+  - PD-controlled actuators
+  - Relevant sensors (IMU, velocities, foot positions, contact sensors).
+
+  Collision handling is intentionally simplified: collisions are disabled globally and only enabled for the **feet**, meaning that only foot–ground contacts are considered. This improves simulation stability and is sufficient for locomotion tasks like trotting.
+
+  For more complex environments, this model can be extended by enabling additional collision geometries and contact interactions.
 
 - `scene_mjx_feetonly_flat_terrain.xml`  
-  Defines the simulation scene and environment, and imports the robot model
+  Defines the simulation environment and includes the Solo8 robot model. It sets up a simple flat terrain with a plane ground, basic lighting, textures, and rendering settings.
 
-- Additional XML files:
-  - `actuators.xml` – actuator definitions  
-  - `contacts.xml` – contact configuration  
-  - `floorplane.xml` – ground plane  
-  - `sensors.xml` – sensor setup  
-  - `shared.xml` – shared components  
-  - `world_unconstrained.xml` – world definition  
+  The floor is configured to only interact with the robot’s feet (matching the collision setup in the robot model), ensuring stable and efficient contact simulation.
+
+  A predefined **`home` keyframe** specifies the robot’s initial pose, including base position/orientation and joint configuration. This provides a consistent starting state for simulations and training.
 
 - `meshes/`  
   Contains all mesh files used for rendering
@@ -62,37 +56,20 @@ Contains all MuJoCo XML files describing the robot and simulation setup.
 ### `solo8/trotting_demonstration/`
 Contains the full **two-stage training pipeline** and evaluation tools.
 
-- `trotting_demonstration_stage1.py`  
-  First training stage: imitation learning based on a predefined trajectory
+- `demonstration_trajectory.py`  
+  Generates a reference trajectory that roughly captures the desired trotting motion, using a Bézier-based swing profile for the z-position and a sinusoidal function for the x-position
+
+- `trotting_demonstration_stage1.py`
+  The first stage is used to track the demonstration trajectory. This helps the policy learn the basic coordination pattern required for trotting.
 
 - `trotting_demonstration_stage2.py`  
-  Second stage: improves robustness and removes timing dependence
-
-- `demonstration_trajectory.py`  
-  Generates a reference trajectory that roughly captures the desired trotting motion
+  Second stage: improves robustness, removes timing dependence, and introduces domain randomisation to facilitate a better sim-to-real transfer
 
 - `evaluate_stage1.py`, `trotting_diagnostics.py`  
   Used for evaluation and visualization
 
 - `diagnostics_output/`  
   Stores generated plots and results
-
----
-
-## Training Approach
-
-The training is split into two stages:
-
-### Stage 1 – Imitation Learning
-A reference trajectory is used, and the agent is trained to follow it as closely as possible.  
-This helps the policy learn the basic coordination pattern required for trotting.
-
-### Stage 2 – Robust Locomotion
-In the second stage:
-- Time dependency is relaxed
-- The learned behavior becomes more flexible
-- Robustness is improved against disturbances
-- Domain randomization is introduced
 
 ---
 
@@ -123,6 +100,8 @@ Example:
 python learning/train_jax_ppo.py --env_name Solo8TrottingDemonstrationStage2 --rscope_envs 16 --run_evals=False --deterministic_rscope=True --load_checkpoint_path logs/Solo8TrottingDemonstrationStage1-20260310-135721/checkpoints
 ```
 
+## Trouble shooting
+
 ---
 
 ## Extending the Project
@@ -131,3 +110,10 @@ The project is designed to be easily extendable.
 
 New tasks can be added by simply creating a new file in the `solo8` directory.  
 The `Solo8Env` base class already provides all core functionality (simulation setup, sensors, actions), so new environments can focus purely on task definition and reward design.
+
+Additionally, new environments can be added to train the robot in a different scene (e.g. rough terrain or obstacle-filled scenes). As different scenes were used in other robot platforms (e.g. Go1), their implementations can be used for guidance.
+  - Path from the XML needs to be added to the solo8_constants.py
+  - To run the training with different scenes ... ( what to change in the command?)
+
+  - Improve reward design
+  - Use trajectory optimisation (TO) to get a better reference trajectory for stage 1 training
